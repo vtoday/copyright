@@ -230,7 +230,7 @@ func (c *Client) doRequest(method string, params map[string]interface{}, result 
 	}
 
 	if !res.Code.IsSuccess() {
-		return NewError(CApiResBizError).SetErr(NewError(res.Code, res.Message))
+		return NewError(CApiResBizError, res.Message).SetErr(NewError(res.Code, res.Message))
 	}
 
 	if res.Sign == "" {
@@ -326,10 +326,10 @@ func ParseRequest(req *http.Request) (r *Request, err error) {
 	case strings.HasPrefix(ctype, MIMEApplicationJSON):
 		err = json.NewDecoder(req.Body).Decode(&r)
 		if ute, ok := err.(*json.UnmarshalTypeError); ok {
-			err = fmt.Errorf("unmarshal type error: expected=%v, got=%v, field=%v, offset=%v", ute.Type, ute.Value, ute.Field, ute.Offset)
+			err = fmt.Errorf("请求参数类型错误: field=%v, expected=%v, got=%v, offset=%v", ute.Field, ute.Type, ute.Value, ute.Offset)
 			return
 		} else if se, ok := err.(*json.SyntaxError); ok {
-			err = fmt.Errorf("syntax error: offset=%v, error=%v", se.Offset, se.Error())
+			err = fmt.Errorf("JSON语法错误: offset=%v, error=%v", se.Offset, se.Error())
 			return
 		}
 
