@@ -1,8 +1,8 @@
 package copyright
 
 const (
-	kSandboxURL       = "http://dev-openapi.7ex.art/api/v1/open"
-	kProductionURL    = "https://openapi.7ex.art/api/v1/open"
+	kSandboxURL       = "http://dev-openapi.360ex.art/api/v1/open"
+	kProductionURL    = "https://openapi.360ex.art/api/v1/open"
 	kContentType      = "application/json;charset=utf-8"
 	kSignNodeName     = "sign"
 	HeaderContentType = "Content-Type"

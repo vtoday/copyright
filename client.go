@@ -96,6 +96,10 @@ func New(appId, privateKey, publicKey string, isProd bool, opts ...OptionFunc) (
 	return client, nil
 }
 
+func (c *Client) SetApiDomain(url string) {
+	c.apiDomain = url
+}
+
 func (c *Client) URLValues(method string, params map[string]interface{}) (value url.Values, e *BizErr) {
 	var p = url.Values{}
 	p.Add("app_id", c.appId)
@@ -181,19 +185,19 @@ func (c *Client) CheckRequestParams(request *Request) *BizErr {
 	return nil
 }
 
-func (c *Client) doRequest(method string, params map[string]interface{}, result interface{}) (e *BizErr) {
+func (c *Client) DoRequest(method string, params map[string]interface{}) (data []byte, e *BizErr) {
 	var buf io.Reader
 	var reqBody string
 	var err error
 	if len(params) > 0 {
 		p, e := c.URLValues(method, params)
 		if e != nil {
-			return e
+			return nil, e
 		}
 
 		reqBody, err = URLValuesToJsonString(p)
 		if err != nil {
-			return NewError(CUnknown).SetErr(err)
+			return nil, NewError(CUnknown).SetErr(err)
 		}
 
 		buf = strings.NewReader(reqBody)
@@ -201,7 +205,7 @@ func (c *Client) doRequest(method string, params map[string]interface{}, result 
 
 	req, err := http.NewRequest("POST", c.apiDomain, buf)
 	if err != nil {
-		return NewError(CUnknown).SetErr(err)
+		return nil, NewError(CUnknown).SetErr(err)
 	}
 	req.Header.Set("Content-Type", kContentType)
 
@@ -210,18 +214,31 @@ func (c *Client) doRequest(method string, params map[string]interface{}, result 
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		return NewError(CApiRequestFailure).SetErr(err)
+		return nil, NewError(CApiRequestFailure).SetErr(err)
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return NewError(CUnknown).SetErr(err)
+		return nil, NewError(CUnknown).SetErr(err)
 	}
 
 	c.logger.Infof("Copyright api request, url: %s, request: %s, response: %s", c.apiDomain, reqBody, string(data))
 
+	return
+}
+
+func (c *Client) DoRequestAndVerify(method string, params map[string]interface{}, result interface{}) *BizErr {
+	data, err := c.DoRequest(method, params)
+	if err != nil {
+		return err
+	}
+
+	return c.VerifySignWithDecryptResponse(data, result)
+}
+
+func (c *Client) VerifySignWithDecryptResponse(data []byte, result interface{}) (e *BizErr) {
 	var res *Response
-	if err = json.Unmarshal(data, &res); err != nil {
+	if err := json.Unmarshal(data, &res); err != nil {
 		return NewError(CDataDecodeFailure).SetErr(err)
 	}
 
@@ -262,10 +279,6 @@ func (c *Client) doRequest(method string, params map[string]interface{}, result 
 	}
 
 	return
-}
-
-func (c *Client) DoRequest(method string, params map[string]interface{}, result interface{}) *BizErr {
-	return c.doRequest(method, params, result)
 }
 
 func (c *Client) VerifyResponseSign(res *Response) (bool, *BizErr) {
